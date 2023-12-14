@@ -124,7 +124,8 @@ fn move_extracted_files(vpk_output_dir: &String, destination: &str){
         // check if the file already exists 
         let does_file_already_exist = Path::new(&path).exists();
         if does_file_already_exist {
-            panic!("already exist");
+            handle_folder_that_already_exists(&path);
+            continue;
         }
         else {
             // use 'rename' function to move the newly extracted folder to the destination.
@@ -155,4 +156,11 @@ fn move_extracted_files(vpk_output_dir: &String, destination: &str){
         Ok(e) => ()
     };
 
+}
+
+/**
+ * If the folder already exists, check which specific files are missing and only move those into the destination.
+ */
+fn handle_folder_that_already_exists() {
+    // TODO
 }
