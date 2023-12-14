@@ -1,11 +1,16 @@
-use std::process::Command;
-
+use std::{path::Path,process::Command, fs::File};
 
 fn main() {
 
     let tf2_dir = "E:/SteamLibrary/steamapps/common/Team Fortress 2".to_owned();
     let sfm_dir = "E:/SteamLibrary/steamapps/common/SourceFilmmaker/game/tf";
     // TODO: remove and write directly to SFM folder
+
+    let mut vpk_exe_path = tf2_dir.clone().to_owned();
+
+    vpk_exe_path.push_str("/bin/vpk.exe");
+
+    println!("\x1b[93m[WARNING]: run this file with admin permissions, otherwise it can't extract the data from the VPK file.\x1b[0m");
 
     // TODO: auto-detect the tf2 and sfm directories. or ask user for input if auto-detection fails
     println!("Your TF2 directory sits at {}", tf2_dir);
@@ -47,15 +52,32 @@ fn get_file_names(path: &str, tf2_game_path: &str) -> Vec<String> {
 
 fn extract_vpk_file(vpk_file_path: &str,tf2_game_path: &str, destination: &str) {
     let file_names = get_file_names(&vpk_file_path, &tf2_game_path);
-    println!("{}",file_names.last().unwrap().to_string());
 
-    let tf2_dir = tf2_game_path.clone().to_owned();
+    let mut tf2_dir = tf2_game_path.clone().to_owned();
+    tf2_dir.push_str("/bin/vpk.exe");
+    
+    let vpk_file_name = vpk_file_path.split("/tf/").last().unwrap();
+    println!("Output dir: {tf2_game_path}/tf/{vpk_file_name}");
+    println!("tf2_dir: {tf2_dir}");
 
-    // let mut vpk_cmd = Command::new(tf2_dir);
-    // vpk_cmd.arg("x").arg(vpk_file_path);
+    let mut vpk_cmd = Command::new(tf2_dir);
+    vpk_cmd.arg(vpk_file_path);
 
-    // let output = String::from_utf8(vpk_cmd.output().unwrap().stdout).unwrap().to_string();
+    let output = match vpk_cmd.output() {
+        Ok(data) => data,
+        Err(err) => {
+            if err.kind().to_string() == "PermissionDenied" {
+                panic!("Please run this file with admin permissions!");
+            }
+            return ();
+        },
+    }.stdout;
 
-    // println!("Output: {}",output);
+    
+    let outputString = String::from_utf8(output).unwrap().to_string();
+    
+    let check = Path::new("{tf2_game_path}").exists();
+
+    println!("Output: {}",outputString);
 }
 
