@@ -74,55 +74,85 @@ fn move_extracted_files(vpk_output_dir: &String, destination: &str){
     // remove unneeded folders (only maps, models, materials, particles, sound)
     let needed_folders = vec!["maps", "models", "materials", "particles", "sound"];
     
-    if let Ok(entries) = fs::read_dir(vpk_output_dir.to_string()) {
-        for entry in entries {
-            if let Ok(entry) = entry {
-                let path = entry.path();
-                if !path.is_dir() {
-                    continue;
-                }    
-
-                let folder_name = match path.file_name() {
-                    None => continue,
-                    Some(name) => name,
-                    
-                };
-                // If you want to work with the directory path
-                println!("Folder found: {:?}", path);
-
-                if let Some(name) = folder_name.to_str() {
-                    println!("Folder name: {}", name);
-                    if needed_folders.contains(&name) {
-
-                        // check if the file already exists 
-                        let does_file_already_exist = Path::new(&path).exists();
-                        if does_file_already_exist {
-                            panic!("already exist");
-                        }
-                        // use 'rename' function to move the newly extracted folder to the destination.
-                        let mut destination_folder = destination.to_owned();
-                        destination_folder.push_str("/");
-                            destination_folder.push_str(name);
-                        println!("moving from {:?} to {destination_folder}",path);
-                        let res = fs::rename(&path, &destination_folder);
-                        match res {
-                            Err(e) => {
-                                eprintln!("Failed to move {name} to {destination_folder}");
-                                panic!("{}",e);
-                            }
-                            Ok(e) => e
-                        }
-                    }
-                }
-            }             
-            
+    let entries = match fs::read_dir(vpk_output_dir.to_string()) {
+        Err(e) => {
+           eprintln!("Couldn't read vpk output dir");
+           panic!("{}",e)
         }
-    } else {
-        println!("Failed to read directory");
-    }                 
+        Ok(e) => e,
+    };
+
+    for entry in entries {
+        let entry = match entry {
+            Err(e) => {
+                println!("couldn't read entry in {}, skipping...",vpk_output_dir.to_string());
+                eprintln!("Error: {}",e);
+                continue;
+            }
+            Ok(a) => a,
+        };
+
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }    
+
+        let folder_name = match path.file_name() {
+            None => {
+                println!("\x1b[93m[WARNING] couldn't get file name for {:?}, skipping...\x1b[0m",path);
+                continue;
+            },
+            Some(name) => name,
+            
+        };
+
+        let name = match folder_name.to_str() {
+            None => {
+                println!("\x1b[93m[WARNING] couldn't turn {:?} to str, skipping...\x1b[0m",folder_name);
+                continue;
+            },
+            Some(name) => name,
+        };
+        // If you want to work with the directory path
+        println!("Folder found: {:?}", path);
+
+        println!("Folder name: {}", name);
+        if !needed_folders.contains(&name) {
+            continue;
+        }
+
+        // check if the file already exists 
+        let does_file_already_exist = Path::new(&path).exists();
+        if does_file_already_exist {
+            panic!("already exist");
+        }
+        else {
+            // use 'rename' function to move the newly extracted folder to the destination.
+            let mut destination_folder = destination.to_owned();
+            destination_folder.push_str("/");
+                destination_folder.push_str(name);
+            println!("moving from {:?} to {destination_folder}",path);
+            let res = fs::rename(&path, &destination_folder);
+            match res {
+                Err(e) => {
+                    eprintln!("Failed to move {name} to {destination_folder}");
+                    panic!("{}",e);
+                }
+                Ok(e) => e
+            }
+        }
+    }
+                   
     
 
     // delete remaining folders since we don't need them 
-    fs::remove_dir_all(vpk_output_dir).unwrap();
+    match fs::remove_dir_all(vpk_output_dir) {
+        Err(e) => {
+            eprintln!("Failed to clean up the vpk dir in the /tf/ folder, it should be harmless, but you'll have to delete it manually");
+            eprintln!("Error: {}",e);
+
+        },
+        Ok(e) => ()
+    };
 
 }
