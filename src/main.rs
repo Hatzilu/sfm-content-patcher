@@ -11,48 +11,29 @@ fn main() {
 
     vpk_exe_path.push_str("/bin/vpk.exe");
 
-    println!("\x1b[93m[WARNING]: run this file with admin permissions, otherwise it can't extract the data from the VPK file.\x1b[0m");
-
     // TODO: auto-detect the tf2 and sfm directories. or ask user for input if auto-detection fails
     println!("Your TF2 directory sits at {}", tf2_dir);
     println!("Your SFM directory sits at {}", sfm_dir);
 
-    let mut vpk_path = tf2_dir.clone().to_owned();
-    vpk_path.push_str("/tf/tf2_misc_dir.vpk");
+    let vpk_file_paths = vec!["tf2_misc_dir.vpk", "tf2_textures_dir.vpk", "tf2_sound_misc_dir.vpk", "tf2_sound_vo_english_dir.vpk"];
 
-    extract_vpk_file(&vpk_path,&tf2_dir,destination);
+    for vpk in vpk_file_paths {
+        println!("\x1b[93m[SFM CONTENT PATCHER] extracting {vpk}...\x1b[0m");
+
+        let mut vpk_path = tf2_dir.clone().to_owned();
+        vpk_path.push_str("/tf/");
+        vpk_path.push_str(vpk);
+    
+        extract_vpk_file(&vpk_path,&tf2_dir,destination);
+    }
+
 
     println!("Hello, world!");
 }
 
 
-/**
- * get all file names to be extracted from the vpk file.
- */
-fn get_file_names(path: &str, tf2_game_path: &str) -> Vec<String> {
-    
-    // store all file names from the vpk in an array
-    let mut file_names = Vec::new();
-    let mut tf2_dir = tf2_game_path.clone().to_owned();
-
-    tf2_dir.push_str("/bin/vpk.exe");
-
-    let mut vpk_cmd = Command::new(tf2_dir);
-    vpk_cmd.arg("l").arg(path);
-
-    let output = String::from_utf8(vpk_cmd.output().unwrap().stdout).unwrap().to_string();
-
-    for raw_file_name in output.lines() {
-        if raw_file_name.starts_with("maps") || raw_file_name.starts_with("models") || raw_file_name.starts_with("materials") || raw_file_name.starts_with("particles")  || raw_file_name.starts_with("sound") {
-            file_names.push(raw_file_name.to_string());
-        }
-    }
-
-    return file_names;
-}
-
 fn extract_vpk_file(vpk_file_path: &str,tf2_game_path: &str, destination: &str) {
-    let file_names = get_file_names(&vpk_file_path, &tf2_game_path);
+    // let file_names = get_file_names(&vpk_file_path, &tf2_game_path);
 
     let mut tf2_dir = tf2_game_path.clone().to_owned();
     tf2_dir.push_str("/bin/vpk.exe");
@@ -77,9 +58,17 @@ fn extract_vpk_file(vpk_file_path: &str,tf2_game_path: &str, destination: &str) 
     
     let did_vpk_extract = Path::new(&vpk_output_dir.to_owned().to_string()).exists();
 
-    if (!did_vpk_extract) {
+    if !did_vpk_extract {
         panic!("Something went wrong while extracting the VPK file.");
     }
+
+    move_extracted_files(&vpk_output_dir, &destination)
+
+}
+
+
+
+fn move_extracted_files(vpk_output_dir: &String, destination: &str){
 
     
     // remove unneeded folders (only maps, models, materials, particles, sound)
@@ -89,35 +78,51 @@ fn extract_vpk_file(vpk_file_path: &str,tf2_game_path: &str, destination: &str) 
         for entry in entries {
             if let Ok(entry) = entry {
                 let path = entry.path();
-                if path.is_dir() {
+                if !path.is_dir() {
+                    continue;
+                }    
+
+                let folder_name = match path.file_name() {
+                    None => continue,
+                    Some(name) => name,
                     
-                    // If you want to work with the directory path
-                    println!("Folder found: {:?}", path);
+                };
+                // If you want to work with the directory path
+                println!("Folder found: {:?}", path);
 
-                    // If you want to extract the directory name as a string
-                    if let Some(folder_name) = path.file_name() {
-                        if let Some(name) = folder_name.to_str() {
-                            println!("Folder name: {}", name);
-                            if needed_folders.contains(&name) {
+                if let Some(name) = folder_name.to_str() {
+                    println!("Folder name: {}", name);
+                    if needed_folders.contains(&name) {
 
-                                // use 'rename' function to move the newly extracted folder to the destination.
-                                let mut destination_folder = destination.to_owned();
-                                destination_folder.push_str("/");
-                                destination_folder.push_str(name);
-                                println!("moving from {} to {destination_folder}",path.canonicalize().unwrap().display());
-                                fs::rename(path, destination_folder).unwrap();
+                        // check if the file already exists 
+                        let does_file_already_exist = Path::new(&path).exists();
+                        if does_file_already_exist {
+                            panic!("already exist");
+                        }
+                        // use 'rename' function to move the newly extracted folder to the destination.
+                        let mut destination_folder = destination.to_owned();
+                        destination_folder.push_str("/");
+                            destination_folder.push_str(name);
+                        println!("moving from {:?} to {destination_folder}",path);
+                        let res = fs::rename(&path, &destination_folder);
+                        match res {
+                            Err(e) => {
+                                eprintln!("Failed to move {name} to {destination_folder}");
+                                panic!("{}",e);
                             }
+                            Ok(e) => e
                         }
                     }
                 }
-            }
+            }             
+            
         }
     } else {
         println!("Failed to read directory");
-    }
+    }                 
+    
 
     // delete remaining folders since we don't need them 
     fs::remove_dir_all(vpk_output_dir).unwrap();
 
 }
-
