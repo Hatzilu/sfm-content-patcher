@@ -8,8 +8,12 @@ import (
 )
 
 func main() {
+	
+	required_vpk_files := [4]string{"tf2_misc_dir.vpk", "tf2_textures_dir.vpk", "tf2_sound_misc_dir.vpk", "tf2_sound_vo_english_dir.vpk"}
+
+	// Detect needed directories
 	partialTfDir := path.Join("common","Team Fortress 2")
-	partialSfmDir := path.Join("common","Team Fortress 2")
+	partialSfmDir := path.Join("common","SourceFilmmaker")
 
 	tf2Dir, tf2DirErr := detectDirectory(partialTfDir)
 	if tf2DirErr != nil {
@@ -17,15 +21,19 @@ func main() {
 		panic(tf2DirErr)
 
 	}
+	for i := range required_vpk_files {
+		required_vpk_files[i] = path.Join(tf2Dir,"tf",required_vpk_files[i])
+	}
+	fmt.Println(required_vpk_files)
+
 	sfmDir, sfmDirErr := detectDirectory(partialSfmDir)
 	if sfmDirErr != nil {
 		fmt.Println("Unable to detect SFM directory")
 		panic(sfmDirErr)
 
 	}
-	os.DirFS("/")
-	fmt.Println(tf2Dir)
-	fmt.Println(sfmDir)
+	fmt.Println("TF2 directory detected at ", tf2Dir)
+	fmt.Println("SFM directory detected at ", sfmDir)
 	// fmt.Print("Type a number: ")
 	// fmt.Scan(&i)
 	// fmt.Println("Your number is:", i)
@@ -33,18 +41,11 @@ func main() {
 
 
 func detectDirectory(partialPath string) (string, error) {
-	// fmt.Println(os.DirFS("/"))
-	// exePath, exeErr := os.Executable()
-	// if exeErr != nil {
-	// 	panic(exeErr)
-	// }
-
 	systemDrives := GetLogicalDrives()
 
 	for _, drive := range systemDrives {
 		drive += ":"
 		dirPath := path.Join(drive,"Program Files (x86)","Steam","steamapps",partialPath)
-		fmt.Println("checking path ", dirPath)
 	
 		_, err := os.Stat(dirPath)
 		if err == nil {
@@ -52,7 +53,6 @@ func detectDirectory(partialPath string) (string, error) {
 		}
 	
 		dirPath = path.Join(drive,"SteamLibrary","steamapps",partialPath)
-		fmt.Println("checking path ", dirPath)
 	
 		_ ,err = os.Stat(dirPath)
 		if err == nil {
