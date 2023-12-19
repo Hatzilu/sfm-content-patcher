@@ -8,6 +8,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/NublyBR/go-vpk"
 )
 
 func main() {
@@ -27,18 +29,65 @@ func main() {
 	for i := range required_vpk_files {
 		required_vpk_files[i] = path.Join(tf2Dir,"tf",required_vpk_files[i])
 	}
-
+	
 	sfmDir, sfmDirErr := detectDirectory(partialSfmDir)
 	if sfmDirErr != nil {
 		fmt.Println("Unable to detect SFM directory")
 		panic(sfmDirErr)
-
+		
 	}
 	fmt.Println("TF2 directory detected at ", tf2Dir)
 	fmt.Println("SFM directory detected at ", sfmDir)
+	
+	// Extract vpk files
+	for _, file := range required_vpk_files {	
+		pak, err := vpk.OpenDir(file) 
+		if err != nil {
+			panic(err)
+		}
+
+		defer pak.Close()
+
+        for _, file := range pak.Entries() {
+			// entry, err := file.Open()
+			// if err != nil {
+			// 	panic(err)
+			// }
+
+			path := filepath.Join(sfmDir,"game","tf",file.Filename())
+
+			// Ensure the directories exist by using os.MkdirAll
+			// dir := filepath.Dir(path)
+			// if dir_err := os.MkdirAll(dir, 0755); dir_err != nil {
+			// 		panic(dir_err)
+			// }
+			fmt.Println("Extracting file to",path)
+			// writeErr := ExtractVpkFile(entry, path)
+			// if writeErr != nil {
+			// 		panic(err)
+			// }
+	}
+	}
 	// fmt.Print("Type a number: ")
 	// fmt.Scan(&i)
 	// fmt.Println("Your number is:", i)
+}
+
+
+func ExtractVpkFile(file vpk.FileReader, path string) error {
+	f, err := os.Create(path)
+	if err != nil {
+			return err
+	}
+
+	io.Copy(f, file)
+
+	f.Sync()
+	closeErr := f.Close()
+	if closeErr != nil {
+			return closeErr
+	}
+	return nil
 }
 
 
