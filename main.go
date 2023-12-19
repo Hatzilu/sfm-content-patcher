@@ -1,10 +1,13 @@
 package main
 
 import (
-	"errors"
 	"fmt"
+	"io"
+	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 )
 
 func main() {
@@ -24,7 +27,6 @@ func main() {
 	for i := range required_vpk_files {
 		required_vpk_files[i] = path.Join(tf2Dir,"tf",required_vpk_files[i])
 	}
-	fmt.Println(required_vpk_files)
 
 	sfmDir, sfmDirErr := detectDirectory(partialSfmDir)
 	if sfmDirErr != nil {
@@ -43,24 +45,47 @@ func main() {
 func detectDirectory(partialPath string) (string, error) {
 	systemDrives := GetLogicalDrives()
 
+
 	for _, drive := range systemDrives {
 		drive += ":"
 		dirPath := path.Join(drive,"Program Files (x86)","Steam","steamapps",partialPath)
-	
+		fmt.Println(dirPath)
 		_, err := os.Stat(dirPath)
 		if err == nil {
 			return dirPath, nil
 		}
-	
+		
 		dirPath = path.Join(drive,"SteamLibrary","steamapps",partialPath)
-	
+		
 		_ ,err = os.Stat(dirPath)
 		if err == nil {
 			return dirPath, nil
 		}
 	}
+	
+	var p string
 
-	// recursively check for the 
-	return "",errors.New("Directory not found")
+	for _, drive := range systemDrives {
+		drive += ":\\"
+		
+		err := filepath.WalkDir(drive, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if strings.HasSuffix(path, partialPath) {
+				p = filepath.Join(path,partialPath)
+				return io.EOF
+				
+			}
+			fmt.Println("path", path)
+			return nil
+		})
+		if err == io.EOF {
+			return p, nil
+		}
+		if err != nil {
+			return "", err
+		}
+	}
+	return p, nil
 }
-
