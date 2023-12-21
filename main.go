@@ -41,6 +41,8 @@ func main() {
 	
 	// Extract vpk files
 	for _, file := range required_vpk_files {	
+		fmt.Println("Extracting vpk ",file)
+
 		pak, err := vpk.OpenDir(file) 
 		if err != nil {
 			panic(err)
@@ -49,6 +51,12 @@ func main() {
 		defer pak.Close()
 
         for _, file := range pak.Entries() {
+			isIrrelevantFile := isExtractedFileRelevant(file.Filename()) == false
+
+			if isIrrelevantFile {
+				continue
+			}
+
 			// entry, err := file.Open()
 			// if err != nil {
 			// 	panic(err)
@@ -73,6 +81,16 @@ func main() {
 	// fmt.Println("Your number is:", i)
 }
 
+func isExtractedFileRelevant(name string) bool {
+	relevantFolders := [5]string{"maps", "models", "materials", "particles", "sound"}
+
+	for _, folderPrefix := range relevantFolders {
+		if strings.HasPrefix(name,folderPrefix) {
+			return true
+		}
+	}
+	return false
+}
 
 func ExtractVpkFile(file vpk.FileReader, path string) error {
 	f, err := os.Create(path)
