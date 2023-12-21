@@ -57,24 +57,24 @@ func main() {
 				continue
 			}
 
-			// entry, err := file.Open()
-			// if err != nil {
-			// 	panic(err)
-			// }
+			entry, err := file.Open()
+			if err != nil {
+				panic(err)
+			}
 
 			path := filepath.Join(sfmDir,"game","tf",file.Filename())
 
 			// Ensure the directories exist by using os.MkdirAll
-			// dir := filepath.Dir(path)
-			// if dir_err := os.MkdirAll(dir, 0755); dir_err != nil {
-			// 		panic(dir_err)
-			// }
+			dir := filepath.Dir(path)
+			if dir_err := os.MkdirAll(dir, 0755); dir_err != nil {
+					panic(dir_err)
+			}
 			fmt.Println("Extracting file to",path)
-			// writeErr := ExtractVpkFile(entry, path)
-			// if writeErr != nil {
-			// 		panic(err)
-			// }
-	}
+			writeErr := ExtractVpkFile(entry, path)
+			if writeErr != nil {
+					panic(err)
+			}
+		}
 	}
 	// fmt.Print("Type a number: ")
 	// fmt.Scan(&i)
