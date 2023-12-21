@@ -64,6 +64,12 @@ func main() {
 
 			path := filepath.Join(sfmDir,"game","tf",file.Filename())
 
+			existingFile, err := os.Stat(path)
+			if err == nil && strings.Contains(file.Filename(), existingFile.Name()) {
+				fmt.Println("File already exists ", existingFile.Name())
+				continue
+			}
+
 			// Ensure the directories exist by using os.MkdirAll
 			dir := filepath.Dir(path)
 			if dir_err := os.MkdirAll(dir, 0755); dir_err != nil {
