@@ -1,13 +1,16 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/NublyBR/go-vpk"
 )
@@ -20,9 +23,28 @@ func main() {
 	partialTfDir := path.Join("common","Team Fortress 2")
 	partialSfmDir := path.Join("common","SourceFilmmaker")
 
-	tf2Dir, tf2DirErr := detectDirectory(partialTfDir)
+	// Initialize logger according to -l flag
+	enableLogging := flag.Bool("l", false, "If set to true, a log file will be created when the program runs.")
+	flag.Parse()
+	logger := CustomLogger(os.Stdout, "INFO: ", log.Ldate|log.Ltime, *enableLogging)
+	if *enableLogging {
+		logfile, err  := os.Create("sfm-content-patcher-"+time.Now().Format("2006-01-02-15-04-05")+".log")
+	
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		defer logfile.Close()
+
+		logger.SetOutput(logfile)
+		logger.Println("logfile: ","sfm-content-patcher-"+time.Now().Format("2006-01-02-15-04-05")+".log")
+	} else {
+		logger.SetOutput(nil)
+	}
+
+
+	tf2Dir, tf2DirErr := detectDirectory(partialTfDir, logger)
 	if tf2DirErr != nil {
-		fmt.Println("Unable to detect tf2 directory")
+		logger.Println("Unable to detect tf2 directory")
 		panic(tf2DirErr)
 
 	}
@@ -30,21 +52,22 @@ func main() {
 		required_vpk_files[i] = path.Join(tf2Dir,"tf",required_vpk_files[i])
 	}
 	
-	sfmDir, sfmDirErr := detectDirectory(partialSfmDir)
+	sfmDir, sfmDirErr := detectDirectory(partialSfmDir, logger)
 	if sfmDirErr != nil {
-		fmt.Println("Unable to detect SFM directory")
+		logger.Println("Unable to detect SFM directory")
 		panic(sfmDirErr)
 		
 	}
-	fmt.Println("TF2 directory detected at ", tf2Dir)
-	fmt.Println("SFM directory detected at ", sfmDir)
+	logger.Println("TF2 directory detected at ", tf2Dir)
+	logger.Println("SFM directory detected at ", sfmDir)
 	
 	// Extract vpk files
 	for _, file := range required_vpk_files {	
-		fmt.Println("Extracting vpk ",file)
-
+		logger.Println("Extracting vpk ",file)
+		
 		pak, err := vpk.OpenDir(file) 
 		if err != nil {
+			logger.Fatal(err)
 			panic(err)
 		}
 
@@ -59,6 +82,7 @@ func main() {
 
 			entry, err := file.Open()
 			if err != nil {
+				logger.Fatal(err)
 				panic(err)
 			}
 
@@ -66,7 +90,7 @@ func main() {
 
 			existingFile, err := os.Stat(path)
 			if err == nil && strings.Contains(file.Filename(), existingFile.Name()) {
-				fmt.Println("File already exists ", existingFile.Name())
+				logger.Println("File already exists ", existingFile.Name())
 				continue
 			}
 
@@ -75,16 +99,14 @@ func main() {
 			if dir_err := os.MkdirAll(dir, 0755); dir_err != nil {
 					panic(dir_err)
 			}
-			fmt.Println("Extracting file to",path)
+			logger.Println("Extracting file to",path)
 			writeErr := ExtractVpkFile(entry, path)
 			if writeErr != nil {
-					panic(err)
+				logger.Fatal(err)
+				panic(err)
 			}
 		}
 	}
-	// fmt.Print("Type a number: ")
-	// fmt.Scan(&i)
-	// fmt.Println("Your number is:", i)
 }
 
 
@@ -105,14 +127,14 @@ func ExtractVpkFile(file vpk.FileReader, path string) error {
 }
 
 
-func detectDirectory(partialPath string) (string, error) {
+func detectDirectory(partialPath string, logger *customLogger) (string, error) {
 	systemDrives := GetLogicalDrives()
 
 
 	for _, drive := range systemDrives {
 		drive += ":"
 		dirPath := path.Join(drive,"Program Files (x86)","Steam","steamapps",partialPath)
-		fmt.Println(dirPath)
+		logger.Println(dirPath)
 		_, err := os.Stat(dirPath)
 		if err == nil {
 			return dirPath, nil
@@ -140,7 +162,7 @@ func detectDirectory(partialPath string) (string, error) {
 				return io.EOF
 				
 			}
-			fmt.Println("path", path)
+			logger.Println("path", path)
 			return nil
 		})
 		if err == io.EOF {
