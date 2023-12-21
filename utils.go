@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"syscall"
 )
 
@@ -19,6 +20,17 @@ func GetLogicalDrives() []string {
 
 	return drives
 
+}
+
+func isExtractedFileRelevant(name string) bool {
+	relevantFolders := [5]string{"maps", "models", "materials", "particles", "sound"}
+
+	for _, folderPrefix := range relevantFolders {
+		if strings.HasPrefix(name,folderPrefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func bitsToDrives(bitMap uint32) (drives []string) {

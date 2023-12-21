@@ -87,16 +87,6 @@ func main() {
 	// fmt.Println("Your number is:", i)
 }
 
-func isExtractedFileRelevant(name string) bool {
-	relevantFolders := [5]string{"maps", "models", "materials", "particles", "sound"}
-
-	for _, folderPrefix := range relevantFolders {
-		if strings.HasPrefix(name,folderPrefix) {
-			return true
-		}
-	}
-	return false
-}
 
 func ExtractVpkFile(file vpk.FileReader, path string) error {
 	f, err := os.Create(path)
