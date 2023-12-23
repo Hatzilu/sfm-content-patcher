@@ -128,7 +128,7 @@ func ExtractVpkFile(file vpk.FileReader, path string) error {
 
 
 func detectDirectory(partialPath string, logger *customLogger) (string, error) {
-	systemDrives := GetLogicalDrives()
+	systemDrives := [24]string{"C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"}
 
 
 	for _, drive := range systemDrives {
