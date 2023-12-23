@@ -3,8 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
-	"io/fs"
 	"log"
 	"os"
 	"path"
@@ -19,9 +17,6 @@ func main() {
 	
 	required_vpk_files := [4]string{"tf2_misc_dir.vpk", "tf2_textures_dir.vpk", "tf2_sound_misc_dir.vpk", "tf2_sound_vo_english_dir.vpk"}
 
-	// Detect needed directories
-	partialTfDir := path.Join("common","Team Fortress 2")
-	partialSfmDir := path.Join("common","SourceFilmmaker")
 
 	// Initialize logger according to -l flag
 	enableLogging := flag.Bool("l", false, "If set to true, a log file will be created when the program runs.")
@@ -42,24 +37,31 @@ func main() {
 	}
 
 
-	tf2Dir, tf2DirErr := detectDirectory(partialTfDir, logger)
-	if tf2DirErr != nil {
-		logger.Println("Unable to detect tf2 directory")
-		panic(tf2DirErr)
+	// tf2Dir, tf2DirErr := detectDirectory(partialTfDir, logger)
+	// if tf2DirErr != nil {
+	// 	logger.Println("Unable to detect tf2 directory")
+	// 	panic(tf2DirErr)
 
-	}
+	// }
+
+	var tf2Dir string
+	fmt.Println("Please paste your \"Team Fortress 2\" directory path: ")
+	fmt.Scanln(&tf2Dir)
+	var sfmDir string
+	fmt.Println("Please paste your \"SourceFilmmaker\" directory path: ")
+	fmt.Scanln(&sfmDir)
 	for i := range required_vpk_files {
 		required_vpk_files[i] = path.Join(tf2Dir,"tf",required_vpk_files[i])
 	}
 	
-	sfmDir, sfmDirErr := detectDirectory(partialSfmDir, logger)
-	if sfmDirErr != nil {
-		logger.Println("Unable to detect SFM directory")
-		panic(sfmDirErr)
+	// sfmDir, sfmDirErr := detectDirectory(partialSfmDir, logger)
+	// if sfmDirErr != nil {
+	// 	logger.Println("Unable to detect SFM directory")
+	// 	panic(sfmDirErr)
 		
-	}
-	logger.Println("TF2 directory detected at ", tf2Dir)
-	logger.Println("SFM directory detected at ", sfmDir)
+	// }
+	// logger.Println("TF2 directory detected at ", tf2Dir)
+	// logger.Println("SFM directory detected at ", sfmDir)
 	
 	// Extract vpk files
 	for _, file := range required_vpk_files {	
@@ -110,67 +112,3 @@ func main() {
 }
 
 
-func ExtractVpkFile(file vpk.FileReader, path string) error {
-	f, err := os.Create(path)
-	if err != nil {
-			return err
-	}
-
-	io.Copy(f, file)
-
-	f.Sync()
-	closeErr := f.Close()
-	if closeErr != nil {
-			return closeErr
-	}
-	return nil
-}
-
-
-func detectDirectory(partialPath string, logger *customLogger) (string, error) {
-	systemDrives := [24]string{"C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"}
-
-
-	for _, drive := range systemDrives {
-		drive += ":"
-		dirPath := path.Join(drive,"Program Files (x86)","Steam","steamapps",partialPath)
-		logger.Println(dirPath)
-		_, err := os.Stat(dirPath)
-		if err == nil {
-			return dirPath, nil
-		}
-		
-		dirPath = path.Join(drive,"SteamLibrary","steamapps",partialPath)
-		
-		_ ,err = os.Stat(dirPath)
-		if err == nil {
-			return dirPath, nil
-		}
-	}
-	
-	var p string
-
-	for _, drive := range systemDrives {
-		drive += ":\\"
-		
-		err := filepath.WalkDir(drive, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if strings.HasSuffix(path, partialPath) {
-				p = filepath.Join(path,partialPath)
-				return io.EOF
-				
-			}
-			logger.Println("path", path)
-			return nil
-		})
-		if err == io.EOF {
-			return p, nil
-		}
-		if err != nil {
-			return "", err
-		}
-	}
-	return p, nil
-}
