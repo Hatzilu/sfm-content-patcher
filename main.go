@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path"
@@ -109,6 +110,23 @@ func main() {
 			}
 		}
 	}
+}
+
+
+func ExtractVpkFile(file vpk.FileReader, path string) error {
+	f, err := os.Create(path)
+	if err != nil {
+			return err
+	}
+
+	io.Copy(f, file)
+
+	f.Sync()
+	closeErr := f.Close()
+	if closeErr != nil {
+			return closeErr
+	}
+	return nil
 }
 
 
