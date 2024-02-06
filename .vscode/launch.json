@@ -1,0 +1,45 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'sfm-content-patcher'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=sfm-content-patcher",
+                    "--package=sfm-content-patcher"
+                ],
+                "filter": {
+                    "name": "sfm-content-patcher",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'sfm-content-patcher'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=sfm-content-patcher",
+                    "--package=sfm-content-patcher"
+                ],
+                "filter": {
+                    "name": "sfm-content-patcher",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
