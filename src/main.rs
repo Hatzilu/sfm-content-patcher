@@ -1,19 +1,10 @@
-use std::{ fs,  io::{Read, Write}, path::Path, sync::{Arc, Mutex}, thread::{self, Thread}, time::Duration};
+use std::{ fs, io::{ErrorKind, Read, Write}, path::Path, sync::{Arc, Mutex}, thread, time::Instant};
 use vpk::vpk::VPK;
 
-// #[derive(Clone)]
-// struct MyVPKEntry(VPKEntry);
-
-// Implement Clone for MyVPKEntry
-// impl Clone for MyVPKEntry {
-//     fn clone(&self) -> Self {
-//         // Clone the inner VPKEntry
-//         Self(self.clone())
-//     }
-// }
-
+static NEEDED_FOLDERS: &'static[&str] = &["maps", "models" , "materials", "particles", "sound"];
 fn main(){
 
+    let now = Instant::now();
     let vpk_paths = [
         "C:/Program Files (x86)/Steam/steamapps/common/Team Fortress 2/tf/tf2_misc_dir.vpk",
         "C:/Program Files (x86)/Steam/steamapps/common/Team Fortress 2/tf/tf2_sound_misc_dir.vpk",
@@ -44,53 +35,65 @@ fn main(){
 
             let mut vpk_map = vpk_mutex_clone.lock().unwrap();
 
+
+
             for (name, file) in vpk_map.tree.iter_mut() {
+
+                let mut should_skip_iteration = true;
                 
-                let cloned_file = file;
-                // let mut buf = Vec::new();
+                for folder_prefix in NEEDED_FOLDERS.iter() {
+                    if name.starts_with(folder_prefix) {
+                        should_skip_iteration = false;
+                        break;
+                    }
+                }
                 
-                let mut dest_path_string = "C:/Users/the linux drive/Desktop/rust_sfm_test/".to_string();
-                dest_path_string.push_str(&name);
+                if should_skip_iteration {
+                    continue;
+                }
+
+                let dest_path_string = format!("C:/Users/the linux drive/Desktop/rust_sfm_test/{}", &name);
                 let dest_path = Path::new(&dest_path_string);
+
+                if Path::exists(&dest_path) {
+                    continue;
+                }
+
+                let cloned_file = file;
+                
+
                 
                 let parent = dest_path.parent().unwrap();
                 if Path::exists(parent) == false {
-                    println!("creating dir '{}'", &parent.to_string_lossy());
-                    match fs::create_dir_all(&parent) {
-                        Err(e) => {eprintln!("Failed to create directories, error: {:?}", e);},
-                        Ok(()) => {println!("Successfully Created dir {}", &parent.to_string_lossy())},
-                    }
-                    thread::sleep(Duration::from_millis(1000));
+                    println!("[Thread {}]: creating dir '{}'", &*idx, &parent.to_string_lossy());
+                    fs::create_dir_all(&parent).expect("Failed to create directories");
                     
-                } else {
-                    println!("path exists {}",&parent.to_string_lossy());
-                }
+                } 
+         
+
+                let mut dest_file = fs::File::create(&dest_path).expect("Could not create file");
                 
-                let mut opts = fs::OpenOptions::new();
-                let mut dest = opts.write(true).open(&dest_path).expect("Failed to write file");
+                //  TODO: read and write to dest somehow
 
-                for byte in cloned_file.bytes().into_iter() {
-                    let b = byte.unwrap();
-                    dest.write(&[b]).unwrap();
-                    // buf.push(&b);
-                }
+                // let mut buf = [0u8; 8192 ];
+                // let mut bufs = Vec::new();
+                // loop {
+                //     match cloned_file.read(&mut buf) {
+                //         Ok(0) => break, // End of file
+                //         Ok(n) => {
+                //             // bufs.push(&buf[..n]);
+                //             let bytes = &buf[..n];
+                //             println!("bytes {:?}",bytes.len());
+                //             dest_file.write(bytes).expect("Failed to write to file");
+                //         }
+                //         Err(ref e) if e.kind() == ErrorKind::Interrupted => continue, // Retry on interrupted system calls
+                //         Err(e) => panic!("Error reading file: {}", e),
+                //     }
+                //     println!("[Thread {}]: buffer size: {}", &*idx, &buf.len());
+                //     // }
+                //     // dest_file.write_all(&buf).expect("Failed to write to file");
+                // }
 
-                // dest.write_all(&bufas_chunks).unwrap();
-                // cloned_file.read(buf)
-                // match cloned_file.read_to_end(&mut buf) {
-                //     Err(e) => {
-                //         println!("Failed to read file {}", e);
-                //         panic!("{}",e);
-                //     },
-                //     Ok(size) => println!("name {}, usize: {}", &name, &size),
-                // };
-
-    
-
-                
-
-                // fs::write(&dest_path,&bytes);
-                // dest.write_all(&buf).unwrap();
 
                 println!("[Thread #{}]: Wrote file {}", &*idx, &name);
             }
@@ -109,7 +112,9 @@ fn main(){
             }
         };
     }
+    
+    let elapsed_time = now.elapsed();
 
-    println!("Finish")
+    println!("Finish, time: {}", &elapsed_time.as_secs());
     
 }
