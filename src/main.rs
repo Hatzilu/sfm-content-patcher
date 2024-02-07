@@ -1,8 +1,8 @@
-use std::{ fs, io::{ErrorKind, Read, Write}, path::Path, sync::{Arc, Mutex}, thread, time::Instant};
+use std::{ fs, io::{ Read, Write}, path::Path, sync::{Arc, Mutex}, thread, time::Instant};
 use vpk::vpk::VPK;
 
 static NEEDED_FOLDERS: &'static[&str] = &["maps", "models" , "materials", "particles", "sound"];
-fn main(){
+fn main() {
 
     let now = Instant::now();
     let vpk_paths = [
@@ -12,29 +12,30 @@ fn main(){
         "C:/Program Files (x86)/Steam/steamapps/common/Team Fortress 2/tf/tf2_textures_dir.vpk",
     ];
 
-    let mut handles = Vec::<thread::JoinHandle<()>>::with_capacity(4);
-       // Create a Mutex to protect access to the VPK instance
-       for (i, vpk_path) in vpk_paths.into_iter().enumerate() {
-           let path = Path::new(&vpk_path);
-           let vpk = VPK::read(&path).unwrap();
-           
-           let vpk_path_mutex = Arc::new(Mutex::new(vpk_path));
-           let vpk_path_mutex_clone = Arc::clone(&vpk_path_mutex);
+    let number_of_threads = vpk_paths.len();
+    let mut handles = Vec::<thread::JoinHandle<()>>::with_capacity(number_of_threads);
 
-           let vpk_mutex = Arc::new(Mutex::new(vpk));
-           let vpk_mutex_clone = Arc::clone(&vpk_mutex);
-           
-           let thread_idx_guard = Arc::new(Mutex::new(i));
-           let thread_idx = Arc::clone(&thread_idx_guard);
+    // Create a Mutex to protect access to the VPK instance
+    for (i, vpk_path) in vpk_paths.into_iter().enumerate() {
+        let path = Path::new(&vpk_path);
+        let vpk = VPK::read(&path).unwrap();
+        
+        let vpk_path_mutex = Arc::new(Mutex::new(vpk_path));
+        let vpk_path_mutex_clone = Arc::clone(&vpk_path_mutex);
 
-         let handle =  thread::spawn(move || {
+        let vpk_mutex = Arc::new(Mutex::new(vpk));
+        let vpk_mutex_clone = Arc::clone(&vpk_mutex);
+        
+        let thread_idx_guard = Arc::new(Mutex::new(i));
+        let thread_idx = Arc::clone(&thread_idx_guard);
+        
+        let builder =  thread::Builder::new().name(format!("Thread {}",&i)).spawn(move || {
             
-             let idx = thread_idx.lock().unwrap();
-             let vpk_path = vpk_path_mutex_clone.lock().unwrap();
-             println!("Thread #{} working on {}. Thread ID={:?}",&*idx, &*vpk_path.to_string(), &thread::current().id());
+            let idx = thread_idx.lock().unwrap();
+            let vpk_path = vpk_path_mutex_clone.lock().unwrap();
+            println!("Thread #{} working on {}. Thread ID={:?}",&*idx, &*vpk_path.to_string(), &thread::current().id());
 
             let mut vpk_map = vpk_mutex_clone.lock().unwrap();
-
 
 
             for (name, file) in vpk_map.tree.iter_mut() {
@@ -61,11 +62,10 @@ fn main(){
 
                 let cloned_file = file;
                 
-
-                
+    
                 let parent = dest_path.parent().unwrap();
                 if Path::exists(parent) == false {
-                    println!("[Thread {}]: creating dir '{}'", &*idx, &parent.to_string_lossy());
+                    println!("[Thread #{}]: creating dir '{}'", &*idx, &parent.to_string_lossy());
                     fs::create_dir_all(&parent).expect("Failed to create directories");
                     
                 } 
@@ -73,32 +73,25 @@ fn main(){
 
                 let mut dest_file = fs::File::create(&dest_path).expect("Could not create file");
                 
-                //  TODO: read and write to dest somehow
+                let mut bytes = vec![0u8];
+                let length = usize::try_from(cloned_file.dir_entry.file_length).unwrap();
+                for byte in cloned_file.bytes().into_iter() {
+                    if bytes.len() >= length {
+                        break;
+                    }
 
-                // let mut buf = [0u8; 8192 ];
-                // let mut bufs = Vec::new();
-                // loop {
-                //     match cloned_file.read(&mut buf) {
-                //         Ok(0) => break, // End of file
-                //         Ok(n) => {
-                //             // bufs.push(&buf[..n]);
-                //             let bytes = &buf[..n];
-                //             println!("bytes {:?}",bytes.len());
-                //             dest_file.write(bytes).expect("Failed to write to file");
-                //         }
-                //         Err(ref e) if e.kind() == ErrorKind::Interrupted => continue, // Retry on interrupted system calls
-                //         Err(e) => panic!("Error reading file: {}", e),
-                //     }
-                //     println!("[Thread {}]: buffer size: {}", &*idx, &buf.len());
-                //     // }
-                //     // dest_file.write_all(&buf).expect("Failed to write to file");
-                // }
+                    let b = byte.unwrap();
+                    bytes.push(b);
+                }
 
+                dest_file.write_all(&bytes).expect("Failed to write");
 
-                println!("[Thread #{}]: Wrote file {}", &*idx, &name);
+                let bytes_string = format_byte_size(bytes.len());
+
+                println!("[Thread #{}]: wrote {} bytes into {}", &*idx, &bytes_string, &name);
             }
         });
-        handles.push(handle)
+        handles.push(builder.unwrap())
 
     }
 
@@ -108,13 +101,32 @@ fn main(){
         match handle.join() {
             Ok(()) => {println!("Thread {:?} is finished", &id)},
             Err(e) => {
-                eprintln!("Failed to join Thread {:?}, err: {:?}", &id, &e)
+                println!("Failed to join Thread {:?}", &id);
             }
         };
     }
     
     let elapsed_time = now.elapsed();
 
-    println!("Finish, time: {}", &elapsed_time.as_secs());
-    
+    println!("Finish, time: {}", &elapsed_time.as_secs());   
+}
+
+
+
+
+fn format_byte_size(bytes: usize) -> String {
+    const KB: usize = 1024;
+    const MB: usize = 1024 * KB;
+    const GB: usize = 1024 * MB;
+
+    if bytes >= GB {
+        return format!("{:.2}GB", bytes as f64 / GB as f64)
+    }
+    if bytes >= MB {
+        return format!("{:.2}MB", bytes as f64 / MB as f64)
+    } 
+    if bytes >= KB {
+        return format!("{:.2}KB", bytes as f64 / KB as f64)
+    } 
+    return bytes.to_string();
 }
