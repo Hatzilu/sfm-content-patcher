@@ -1,7 +1,8 @@
-use std::{ fs, io::{ Read, Write}, path::Path, sync::{Arc, Mutex}, thread, time::Instant};
+use std::{ fs, io::Write, path::Path, sync::{Arc, Mutex}, thread, time::Instant};
 use vpk::vpk::VPK;
 
 static NEEDED_FOLDERS: &'static[&str] = &["maps", "models" , "materials", "particles", "sound"];
+
 fn main() {
 
     let now = Instant::now();
@@ -13,6 +14,7 @@ fn main() {
     ];
 
     let number_of_threads = vpk_paths.len();
+    
     let mut handles = Vec::<thread::JoinHandle<()>>::with_capacity(number_of_threads);
 
     // Create a Mutex to protect access to the VPK instance
@@ -60,31 +62,19 @@ fn main() {
                     continue;
                 }
 
-                let cloned_file = file;
+                let bytes = file.get().expect("Failed to get file bytes from VPK entry.");
                 
     
                 let parent = dest_path.parent().unwrap();
                 if Path::exists(parent) == false {
-                    println!("[Thread #{}]: creating dir '{}'", &*idx, &parent.to_string_lossy());
                     fs::create_dir_all(&parent).expect("Failed to create directories");
-                    
                 } 
          
 
                 let mut dest_file = fs::File::create(&dest_path).expect("Could not create file");
-                
-                let mut bytes = vec![0u8];
-                let length = usize::try_from(cloned_file.dir_entry.file_length).unwrap();
-                for byte in cloned_file.bytes().into_iter() {
-                    if bytes.len() >= length {
-                        break;
-                    }
 
-                    let b = byte.unwrap();
-                    bytes.push(b);
-                }
+                dest_file.write_all(&bytes).expect("Failed to write buffer to file");
 
-                dest_file.write_all(&bytes).expect("Failed to write");
 
                 let bytes_string = format_byte_size(bytes.len());
 
@@ -96,14 +86,9 @@ fn main() {
     }
 
     for handle in handles {
-        let id = handle.thread().id().clone();
-        
-        match handle.join() {
-            Ok(()) => {println!("Thread {:?} is finished", &id)},
-            Err(e) => {
-                println!("Failed to join Thread {:?}", &id);
-            }
-        };
+       
+        handle.join().expect("Failed to join thread");
+
     }
     
     let elapsed_time = now.elapsed();
